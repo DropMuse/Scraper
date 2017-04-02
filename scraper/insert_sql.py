@@ -1,21 +1,23 @@
 import pymysql.cursors
 import os
-from analyze_lyrics import *
+import json
+import codecs
+from analyze_lyrics import get_sentiment
 
 connection = pymysql.connect(host='localhost',
                              user='root',
-                             password='password',
-                             db='DropMuse',
+                             password='benjamin',
+                             db='DropMuse2',
                              cursorclass=pymysql.cursors.DictCursor)
 cursor = connection.cursor()
-    # Create a new
 
 try:
-    cursor.execute("""DROP TABLE songs;""")
+    # cursor.execute("""DROP TABLE songs;""")
     connection.commit()
 except pymysql.err.InternalError:
     pass
-sql =  """CREATE TABLE IF NOT EXISTS `songs`
+
+sql = """CREATE TABLE IF NOT EXISTS `songs`
 (
     ID BIGINT,
     title VARCHAR( 200 ) NOT NULL,
@@ -31,13 +33,12 @@ cursor.execute(sql)
 
 artists = ['Mitski', 'LinkinPark', 'Beatles', 'TaylorSwift', 'TwentyOnePilots']
 
-i = 0
 for a in artists:
-    path = 'Artists/' + a +'/lyrics/'
+    path = 'Artists/' + a + '/lyrics/'
     for filename in os.listdir(path):
         if(filename == "urls.txt"):
             continue
-        f = open(path + filename, "r")
+        f = codecs.open(path + filename, "r", encoding='utf-8')
         title = f.readline().rstrip()
         title = f.readline().rstrip()
         lyrics = f.read()
@@ -45,12 +46,12 @@ for a in artists:
             f.close()
             continue
         print(title)
-        tup = (i, title.encode('utf-8'), a.encode('utf-8'), lyrics.encode('utf-8'), None, None, str(get_sentiment(a, filename)))
-        #print(tup)
-        cursor.execute("""INSERT INTO songs VALUES (%s, %s, %s, %s, %s, %s, %s)""", tup)
-        #print(lyrics)
+        tup = (title.encode('utf-8'),
+               a.encode('utf-8'),
+               lyrics.encode('utf-8'),
+               json.dumps(get_sentiment(a, filename)))
+        cursor.execute("INSERT INTO songs(title, artist, lyrics, sentiment) "
+                       "VALUES (%s, %s, %s, %s)", tup)
         f.close()
-        i+= 1
 
-
-connection.commit()
+        connection.commit()

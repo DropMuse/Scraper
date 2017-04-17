@@ -1,8 +1,9 @@
-import pymysql.cursors
 from analyze_audio import get_audio_analysis
 import string
 from get_lyrics import get_lyrics_with_urls, get_lyrics
 from analyse_lyrics import get_sentiment
+from sqlalchemy import text, create_engine
+import os
 
 # TODO:
 #   Iterate through database for all songs with lyrics == NULL
@@ -11,6 +12,14 @@ from analyse_lyrics import get_sentiment
 
 artists = []
 
+DB_USER = os.environ.get('DB_USER')
+DB_PASS = os.environ.get('DB_PASS')
+DB_HOST = os.environ.get('DB_HOST')
+DB_PORT = os.environ.get('DB_PORT', 3306)
+DB_DBNAME = os.environ.get('DB_DBNAME', 'DropMuse')
+DB_CHARSET = "charset=utf8"
+DB_PREFIX = os.environ.get('DB_PREFIX', 'mysql+pymysql://')
+
 
 def update_songs_table():
     for a in artists:
@@ -18,26 +27,28 @@ def update_songs_table():
         for l in lyrics:
             print(l)
 
-    db_name = "main"
-    table = "songs"
-    connection = pymysql.connect(host=aws_endpoint,
-                                 user=aws_username,
-                                 password=aws_password,
-                                 db=db_name,
-                                 cursorclass=pymysql.cursors.DictCursor)
-    cursor = connection.cursor()
+    conn_str = "{}{}:{}@{}:{}/{}?{}".format(DB_PREFIX,
+                                            DB_USER,
+                                            DB_PASS,
+                                            DB_HOST,
+                                            DB_PORT,
+                                            DB_DBNAME,
+                                            DB_CHARSET)
+    engine = create_engine(conn_str, encoding='utf-8')
 
-    sql_query = "SELECT idsongs_dev, artist, song, song_url FROM " + table + ";"
+    # Query songs that don't have sentiment or lyrics or audio analysis
+    sql = text('SELECT id, artist, song, song_url '
+               'FROM songs '
+               'WHERE lyrics IS NULL OR pos IS NULL OR tempo IS NULL;')
 
-    cursor.execute(sql_query)
-    result = cursor.fetchall()
+    con = engine.connect()
+    result = con.execute(sql).fetchall()
 
     for res in result:
-        tup_id = res['idsongs_dev']
+        song_id = res['id']
         artist = res['artist']
         song = res['song']
         song_url = res['song_url']
-        # print("({}, {} , {}, {})".format(tup_id, artist, song, song_url))
         lyrics = get_lyrics(artist, song)
         if(lyrics is None):
             print("Could not find lyrics for " + song)
@@ -45,10 +56,7 @@ def update_songs_table():
         tempo, pitch, harmonic, percussive = get_audio_analysis(song_url)
 
         printable = set(string.printable)
-        lyrics = list(filter(lambda x: x in printable, lyrics))
-        lyrics = ''.join(lyrics)
-        lyrics = lyrics.replace('\"', '\'')
-        # lyrics = lyrics.encode('utf-8', 'ignore')
+        lyrics = ''.join([filter(lambda x: x in printable, lyrics)])
         '''
         print(lyrics)
         print(sentiment)
@@ -57,33 +65,20 @@ def update_songs_table():
         print(harmonic)
         print(percussive)
         '''
-        #time.sleep(10)
-        #sql_update = "UPDATE " + table + " SET lyrics=\'" + lyrics + "\', pos=" + str(sentiment['pos']) + ", neu=" + str(sentiment['neu']) + ", neg=" + str(sentiment['neg']) +  ", compound=" + str(sentiment['compound']) + " WHERE id=" + str(tup_id) + ";"
-        sql_update = """UPDATE {} SET lyrics=\"{}\" WHERE idsongs_dev={};""".format(table, str(lyrics), tup_id)
-        cursor.execute(sql_update)
-
-        sql_update = "UPDATE {} SET pos={} WHERE idsongs_dev={};".format(table,sentiment['pos'], tup_id)
-        cursor.execute(sql_update)
-
-        sql_update = "UPDATE {} SET neg={} WHERE idsongs_dev={};".format(table,sentiment['neg'], tup_id)
-        cursor.execute(sql_update)
-
-        sql_update = "UPDATE {} SET neu={} WHERE idsongs_dev={};".format(table,sentiment['neu'], tup_id)
-        cursor.execute(sql_update)
-
-        sql_update = "UPDATE {} SET compound={} WHERE idsongs_dev={};".format(table,sentiment['compound'], tup_id)
-        cursor.execute(sql_update)
-
-        sql_update = "UPDATE {} SET tempo={} WHERE idsongs_dev={};".format(table,tempo, tup_id)
-        cursor.execute(sql_update)
-
-        sql_update = "UPDATE {} SET pitch={} WHERE idsongs_dev={};".format(table, pitch, tup_id)
-        cursor.execute(sql_update)
-
-        sql_update = "UPDATE {} SET harmonic={} WHERE idsongs_dev={};".format(table,harmonic, tup_id)
-        cursor.execute(sql_update)
-
-        sql_update = "UPDATE {} SET percussive={} WHERE idsongs_dev={};".format(table,percussive, tup_id)
-        cursor.execute(sql_update)
-
-        connection.commit()
+        sql = text('UPDATE songs '
+                   'SET lyrics=:lyrics, pos=:pos, neg=:neg, neu=:neu, '
+                   '    compound=:compound, tempo=:tempo '
+                   '    pitch=:pitch, harmonic=:harmonic, '
+                   '    percussive=:percussive '
+                   'WHERE id=:song_id;', autocommit=True)
+        con.execute(sql,
+                    lyrics=str(lyrics),
+                    pos=sentiment['pos'],
+                    neg=sentiment['neg'],
+                    neu=sentiment['neu'],
+                    compound=sentiment['compound'],
+                    tempo=tempo,
+                    pitch=pitch,
+                    harmonic=harmonic,
+                    percussive=percussive,
+                    song_id=song_id)

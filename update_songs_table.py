@@ -3,7 +3,6 @@ import os
 from aws_creds import *
 import unicodedata
 from analyze_lyrics import *
-from find_artist_songs import *
 import ast
 from bs4 import BeautifulSoup as bs, SoupStrainer
 import urllib
@@ -25,13 +24,7 @@ import re
 #   Try to search for song urls
 #   If found, get the lyrics and update the database
 
-artists = []
-
 def update_songs_table():
-    for a in artists:
-        lyrics = get_lyrics_with_urls(find_artist_songs(a))
-        for l in lyrics:
-            print(l)
 
     db_name = "main"
     table = "songs"

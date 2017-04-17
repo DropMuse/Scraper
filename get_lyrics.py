@@ -15,7 +15,6 @@ import time
 import nltk
 from gensim import corpora
 import sys
-from song_lists import *
 from analyze_lyrics import *
 from urllib.request import urlopen
 #from find_artist_songs import find_artist_songs

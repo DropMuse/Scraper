@@ -34,7 +34,7 @@ def update_songs_table():
             print(l)
 
     db_name = "main"
-    table = "songs_dev"
+    table = "songs"
     connection = pymysql.connect(host=aws_endpoint,
                                  user=aws_username,
                                  password=aws_password,

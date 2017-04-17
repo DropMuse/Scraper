@@ -1,31 +1,16 @@
 import pymysql.cursors
-import os
-from aws_creds import *
-import unicodedata
-from analyze_lyrics import *
-from find_artist_songs import *
-import ast
-from bs4 import BeautifulSoup as bs, SoupStrainer
-import urllib
-import requests
-import time
-import nltk
-from gensim import corpora
-import sys
-from song_lists import *
-from urllib.request import urlopen
-from get_lyrics import *
 from analyze_audio import get_audio_analysis
 import string
-import re
+from get_lyrics import get_lyrics_with_urls, get_lyrics
+from analyse_lyrics import get_sentiment
 
-
-#TODO:
+# TODO:
 #   Iterate through database for all songs with lyrics == NULL
 #   Try to search for song urls
 #   If found, get the lyrics and update the database
 
 artists = []
+
 
 def update_songs_table():
     for a in artists:
@@ -46,14 +31,13 @@ def update_songs_table():
 
     cursor.execute(sql_query)
     result = cursor.fetchall()
-    #print(result)
 
     for res in result:
         tup_id = res['idsongs_dev']
         artist = res['artist']
         song = res['song']
         song_url = res['song_url']
-        #print("({}, {} , {}, {})".format(tup_id, artist, song, song_url))
+        # print("({}, {} , {}, {})".format(tup_id, artist, song, song_url))
         lyrics = get_lyrics(artist, song)
         if(lyrics is None):
             print("Could not find lyrics for " + song)
@@ -64,7 +48,7 @@ def update_songs_table():
         lyrics = list(filter(lambda x: x in printable, lyrics))
         lyrics = ''.join(lyrics)
         lyrics = lyrics.replace('\"', '\'')
-        #lyrics = lyrics.encode('utf-8', 'ignore')
+        # lyrics = lyrics.encode('utf-8', 'ignore')
         '''
         print(lyrics)
         print(sentiment)
@@ -101,6 +85,5 @@ def update_songs_table():
 
         sql_update = "UPDATE {} SET percussive={} WHERE idsongs_dev={};".format(table,percussive, tup_id)
         cursor.execute(sql_update)
-
 
         connection.commit()

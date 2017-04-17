@@ -1,6 +1,6 @@
 from analyze_audio import get_audio_analysis
 import string
-from get_lyrics import get_lyrics_with_urls, get_lyrics
+from get_lyrics import get_lyrics
 from analyse_lyrics import get_sentiment
 from sqlalchemy import text, create_engine
 import os
@@ -22,11 +22,6 @@ DB_PREFIX = os.environ.get('DB_PREFIX', 'mysql+pymysql://')
 
 
 def update_songs_table():
-    for a in artists:
-        lyrics = get_lyrics_with_urls(find_artist_songs(a))
-        for l in lyrics:
-            print(l)
-
     conn_str = "{}{}:{}@{}:{}/{}?{}".format(DB_PREFIX,
                                             DB_USER,
                                             DB_PASS,

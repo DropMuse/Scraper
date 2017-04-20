@@ -51,7 +51,7 @@ def update_songs_table():
         if(lyrics is None):
             print("Could not find lyrics for " + song)
         sentiment = get_sentiment(lyrics)
-        tempo, pitch, harmonic, percussive = get_audio_analysis(song_url)
+        tempo, pitch, harmonic, percussive, j = get_audio_analysis(song_url)
 
         printable = set(string.printable)
         lyrics = list(filter(lambda x: x in printable, lyrics))
@@ -94,6 +94,10 @@ def update_songs_table():
 
         sql_update = "UPDATE {} SET percussive={} WHERE idsongs_dev={};".format(table,percussive, tup_id)
         cursor.execute(sql_update)
+
+        sql_update = "UPDATE {} SET wave_info={} WHERE idsongs_dev={};".format(table,j, tup_id)
+        cursor.execute(sql_update)
+
 
 
         connection.commit()
